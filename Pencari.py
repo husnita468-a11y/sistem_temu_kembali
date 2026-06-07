@@ -545,6 +545,9 @@ def main():
     """, unsafe_allow_html=True)
 
     # ── Panel Pencarian ──
+    use_expansion = True
+    threshold = 0.1
+    top_n = 10
     
     query_input = st.text_input("Masukkan kata kunci",placeholder="Contoh: harga bbm, AI, Prabowo...")
         use_expansion = True
