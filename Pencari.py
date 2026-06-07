@@ -90,48 +90,63 @@ html, body, [class*="css"] {
     margin-bottom: 0;
 }
 
-/* ── Glass Card ── */
-.glass-card {
-    background: rgba(255,255,255,0.12);
-    backdrop-filter: blur(25px);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 30px;
-    padding: 50px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-    margin-top: 20px;
-}
+/* Search */
+    .search-box{
+      position:relative;
+      margin-bottom:30px;
+    }
 
-/* ── Search Input ── */
-.stTextInput input {
-    background: white !important;
-    color: #333 !important;
-    border-radius: 15px !important;
-    border: none !important;
-    height: 55px !important;
-    font-size: 16px !important;
-    padding-left: 15px !important;
-}
+    .search-box input{
+      width:100%;
+      height:70px;
+      border:none;
+      outline:none;
+      border-radius:60px;
+      padding:0 75px 0 28px;
+      font-size:18px;
+      background:rgba(255,255,255,0.18);
+      color:white;
+      backdrop-filter:blur(10px);
+      box-shadow:0 4px 20px rgba(0,0,0,0.1);
+    }
 
-/* ── Tombol ── */
-.stButton > button {
-    background: rgba(255,255,255,0.95) !important;
-    color: #1a7a8f !important;
-    border: none !important;
-    border-radius: 60px !important;
-    font-family: 'Poppins', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 18px !important;
-    padding: 14px 36px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.15) !important;
-    width: 100% !important;
-    height: 55px !important;
-}
-.stButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.2) !important;
-    background: white !important;
-}
+    .search-box input::placeholder{
+      color:#eee;
+    }
+
+    body.dark .search-box input{
+      background:rgba(255,255,255,0.08);
+    }
+
+    .search-box input:focus{
+      transform:scale(1.01);
+      box-shadow:0 0 25px rgba(255,255,255,0.2);
+    }
+
+    /* Search Button */
+    .search-btn{
+      position:absolute;
+      top:50%;
+      right:10px;
+      transform:translateY(-50%);
+      width:55px;
+      height:55px;
+      border:none;
+      border-radius:50%;
+      background:white;
+      color:#6a11cb;
+      font-size:22px;
+      box-shadow:0 5px 20px rgba(255,255,255,0.3);
+    }
+
+    body.dark .search-btn{
+      background:#111827;
+      color:white;
+    }
+
+    .search-btn:hover{
+      transform:translateY(-50%) scale(1.1);
+    }
 
 /* ── Selectbox ── */
 .stSelectbox > div > div {
