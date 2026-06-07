@@ -551,8 +551,6 @@ def main():
     
     query_input = st.text_input("Masukkan kata kunci",placeholder="Contoh: harga bbm, AI, Prabowo...")
         
-        col1, col2 = st.columns([2,1])
-        
         with col1:
             threshold = st.slider(
                 "Threshold relevansi",
