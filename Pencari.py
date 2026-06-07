@@ -55,13 +55,14 @@ html, body, [class*="css"] {
 
 /* ── Hero Section ── */
 .hero-section {
-    text-align:center;
-    padding:20px 20px 5px;
+    text-align: center;
+    padding: 60px 20px 40px;
+    animation: fadeInDown 0.8s ease;
 }
 
 .hero-logo {
-    width: 70px;
-    height: 70px;
+    width: 90px;
+    height: 90px;
     margin: 0 auto 20px;
     border-radius: 25px;
     background: rgba(255,255,255,0.2);
@@ -90,81 +91,56 @@ html, body, [class*="css"] {
     margin-bottom: 0;
 }
 
-/* Search */
-   .search-box{
+/* ── Glass Card ── */
+.glass-card {
     background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.20);
-
-    border-radius: 30px;
-
-    padding: 40px;
-
-    margin-bottom: 20px;
-
-    text-align:center;
-
-    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    backdrop-filter: blur(18px);
+    border-radius: 28px;
+    padding: 36px 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    margin-bottom: 24px;
+    animation: fadeInUp 0.6s ease;
 }
 
-.search-logo{
-    font-size:70px;
-    margin-bottom:10px;
+/* ── Search Input ── */
+.stTextInput > div > div > input {
+    background: rgba(255,255,255,0.2) !important;
+    border: 1.5px solid rgba(255,255,255,0.4) !important;
+    border-radius: 60px !important;
+    color: white !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 17px !important;
+    padding: 18px 28px !important;
+    height: 60px !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.3s ease !important;
 }
-
-.search-title{
-    color:white;
-    font-size:48px;
-    font-weight:700;
-    margin-bottom:10px;
+.stTextInput > div > div > input::placeholder { color: rgba(255,255,255,0.7) !important; }
+.stTextInput > div > div > input:focus {
+    box-shadow: 0 0 25px rgba(255,255,255,0.25) !important;
+    background: rgba(255,255,255,0.28) !important;
 }
+.stTextInput > label { color: white !important; font-weight: 500 !important; font-size: 14px !important; }
 
-.search-subtitle{
-    color:rgba(255,255,255,0.9);
-    font-size:16px;
-}
-
-    /* Responsive */
-    @media(max-width:768px){
-
-      .glass-box{
-        padding:35px 25px;
-      }
-
-      h1{
-        font-size:36px;
-      }
-
-      .subtitle{
-        font-size:15px;
-      }
-
-      .search-box input{
-        height:60px;
-        font-size:16px;
-      }
-
-    }
-
-.stTextInput > div > div > input{
+/* ── Tombol ── */
+.stButton > button {
     background: rgba(255,255,255,0.95) !important;
-    border:none !important;
-    border-radius:50px !important;
-    color:#333 !important;
-
-    height:60px !important;
-
-    padding-left:20px !important;
-
-    font-size:17px !important;
+    color: #1a7a8f !important;
+    border: none !important;
+    border-radius: 60px !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    padding: 14px 36px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15) !important;
+    width: 100% !important;
 }
-
-.stButton > button{
-    border-radius:50px !important;
-
-    height:60px !important;
-    font-size:18px !important;
-    border-radius:50px !important;
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.2) !important;
+    background: white !important;
 }
 
 /* ── Selectbox ── */
@@ -533,54 +509,31 @@ def main():
     URLS              = load_dataset_and_index()
 
     # ── Hero ──
-
+    st.markdown("""
+    <div class="hero-section">
+        <div class="hero-logo">🔍</div>
+        <h1 class="hero-title">Search Engine</h1>
+        <p class="hero-subtitle">Sistem Temu Kembali Informasi Berita Indonesia · TF-IDF + Query Expansion</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── Panel Pencarian ──
-
-    use_expansion = True
-    
     col_left, col_center, col_right = st.columns([1, 3, 1])
-    
     with col_center:
-    
-        st.markdown("""
-        <div class="search-box">
-            <div class="search-logo">🔍</div>
-            <h1 class="search-title">Search Engine</h1>
-            <p class="search-subtitle">
-                Sistem Temu Kembali Informasi Berita Indonesia
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-        query_input = st.text_input(
-            "",
-            placeholder="Cari sesuatu yang menarik...",
-            label_visibility="collapsed"
-        )
-    
-        col1, col2 = st.columns(2)
-    
-        with col1:
-            top_n = st.selectbox(
-                "Jumlah hasil",
-                [5, 10, 20],
-                index=1
-            )
-    
-        with col2:
-            threshold = st.slider(
-                "Threshold relevansi",
-                0.01,
-                0.50,
-                0.10,
-                0.01
-            )
-    
-        search_btn = st.button(
-            "🔍 Cari Sekarang",
-            use_container_width=True
-        ) 
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+
+        query_input  = st.text_input("", placeholder="Cari sesuatu yang menarik...", label_visibility="collapsed")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            use_expansion = st.checkbox("🔄 Gunakan Query Expansion", value=False)
+        with col_b:
+            top_n = st.selectbox("Jumlah hasil", [5, 10, 20], index=1, label_visibility="visible")
+
+        threshold = st.slider("Threshold relevansi", 0.01, 0.5, 0.1, 0.01)
+
+        search_btn   = st.button("🔍  Cari Sekarang")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Load & Index data ──
     if "df" not in st.session_state or "vectorizer" not in st.session_state:
@@ -651,7 +604,7 @@ def main():
             """, unsafe_allow_html=True)
 
             # Sinonim yang dipakai
-            if usynonyms_used:
+            if use_expansion and synonyms_used:
                 syn_html = ""
                 for tok, syns in zip(query_tokens, synonyms_used):
                     badges = "".join(f'<span class="badge">{s}</span> ' for s in syns)
