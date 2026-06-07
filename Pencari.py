@@ -549,17 +549,27 @@ def main():
     threshold = 0.1
     top_n = 10
     
-    <div class="search-box">
+    with col_center:
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 
-      <input type="text" placeholder="Cari sesuatu yang menarik...">
+    query_input = st.text_input(...)
 
-      <button class="search-btn">
-        <i class="bi bi-search"></i>
-      </button>
+    use_expansion = True
 
-    </div>
-    
-        st.markdown('</div>', unsafe_allow_html=True)
+    col1, col2 = st.columns([2,1])
+
+    with col1:
+        ...
+
+    with col2:
+        ...
+
+    search_btn = st.button(
+        "🔍 Cari Berita",
+        use_container_width=True
+    )
+
+        st.markdown('</div>', unsafe_allow_html=True)  
 
     # ── Load & Index data ──
     if "df" not in st.session_state or "vectorizer" not in st.session_state:
