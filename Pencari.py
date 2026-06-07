@@ -92,61 +92,41 @@ html, body, [class*="css"] {
 
 /* Search */
     .search-box{
-      position:relative;
-      margin-bottom:30px;
-    }
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.2);
 
-    .search-box input{
-      width:100%;
-      height:70px;
-      border:none;
-      outline:none;
-      border-radius:60px;
-      padding:0 75px 0 28px;
-      font-size:18px;
-      background:rgba(255,255,255,0.18);
-      color:white;
-      backdrop-filter:blur(10px);
-      box-shadow:0 4px 20px rgba(0,0,0,0.1);
-    }
+    border-radius: 30px;
 
-    .search-box input::placeholder{
-      color:#eee;
-    }
+    padding: 50px 40px;
 
-    body.dark .search-box input{
-      background:rgba(255,255,255,0.08);
-    }
+    margin-top: 20px;
+    margin-bottom: 25px;
 
-    .search-box input:focus{
-      transform:scale(1.01);
-      box-shadow:0 0 25px rgba(255,255,255,0.2);
-    }
+    text-align:center;
 
-    /* Search Button */
-    .search-btn{
-      position:absolute;
-      top:50%;
-      right:10px;
-      transform:translateY(-50%);
-      width:55px;
-      height:55px;
-      border:none;
-      border-radius:50%;
-      background:white;
-      color:#6a11cb;
-      font-size:22px;
-      box-shadow:0 5px 20px rgba(255,255,255,0.3);
-    }
+    box-shadow:
+    0 8px 32px rgba(0,0,0,0.15);
+}
 
-    body.dark .search-btn{
-      background:#111827;
-      color:white;
-    }
+.search-logo{
+    font-size:70px;
+    margin-bottom:10px;
+}
 
-    .search-btn:hover{
-      transform:translateY(-50%) scale(1.1);
-    }
+.search-title{
+    font-size:52px;
+    color:white;
+    font-weight:700;
+    margin-bottom:10px;
+}
+
+.search-subtitle{
+    color:white;
+    opacity:0.85;
+    font-size:18px;
+    margin-bottom:25px;
+}
 
     /* Responsive */
     @media(max-width:768px){
@@ -169,6 +149,30 @@ html, body, [class*="css"] {
       }
 
     }
+
+.stTextInput input{
+    border-radius:50px !important;
+
+    height:60px !important;
+
+    background:rgba(255,255,255,0.85)!important;
+
+    border:none !important;
+
+    font-size:18px !important;
+
+    padding-left:25px !important;
+}
+
+.stButton > button{
+    border-radius:50px !important;
+
+    height:60px !important;
+
+    font-size:18px !important;
+
+    font-weight:600 !important;
+}
 
 /* ── Selectbox ── */
 .stSelectbox > div > div {
@@ -551,24 +555,29 @@ def main():
     
     query_input = st.text_input("Masukkan kata kunci",placeholder="Contoh: harga bbm, AI, Prabowo...")
         
-        with col1:
-            threshold = st.slider(
-                "Threshold relevansi",
-                0.01,
-                0.5,
-                0.1,
-                0.01
-            )
-        
-        with col2:
-            top_n = st.selectbox(
-                "Jumlah hasil",
-                [5,10,20],
-                index=1
-            )
-        
+    use_expansion = True
+    
+    col_left, col_center, col_right = st.columns([1,3,1])
+    
+    with col_center:
+    
+        st.markdown("""
+        <div class="search-box">
+            <div class="search-logo">🔍</div>
+            <h1 class="search-title">Search Engine</h1>
+            <p class="search-subtitle">
+                Sistem Temu Kembali Informasi Berita Indonesia
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+        query_input = st.text_input(
+            "",
+            placeholder="Cari sesuatu yang menarik..."
+        )
+    
         search_btn = st.button(
-            "🔍 Cari Berita",
+            "🔍 Cari Sekarang",
             use_container_width=True
         )
         st.markdown('</div>', unsafe_allow_html=True)  
