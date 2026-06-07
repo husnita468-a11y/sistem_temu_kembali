@@ -56,13 +56,13 @@ html, body, [class*="css"] {
 /* ── Hero Section ── */
 .hero-section {
     text-align: center;
-    padding: 60px 20px 40px;
+    padding: 20px 20px 10px;
     animation: fadeInDown 0.8s ease;
 }
 
 .hero-logo {
-    width: 90px;
-    height: 90px;
+    width: 70px;
+    height: 70px;
     margin: 0 auto 20px;
     border-radius: 25px;
     background: rgba(255,255,255,0.2);
@@ -76,7 +76,7 @@ html, body, [class*="css"] {
 }
 
 .hero-title {
-    font-size: 52px;
+    font-size: 42px;
     font-weight: 700;
     color: white;
     margin-bottom: 8px;
@@ -97,31 +97,24 @@ html, body, [class*="css"] {
     border: 1px solid rgba(255,255,255,0.25);
     backdrop-filter: blur(18px);
     border-radius: 28px;
-    padding: 36px 40px;
+    padding: 25px;
+    max-width: 900px;
+    margin: auto;
     box-shadow: 0 10px 40px rgba(0,0,0,0.2);
     margin-bottom: 24px;
     animation: fadeInUp 0.6s ease;
 }
 
 /* ── Search Input ── */
-.stTextInput > div > div > input {
-    background: rgba(255,255,255,0.2) !important;
-    border: 1.5px solid rgba(255,255,255,0.4) !important;
-    border-radius: 60px !important;
-    color: white !important;
-    font-family: 'Poppins', sans-serif !important;
-    font-size: 17px !important;
-    padding: 18px 28px !important;
-    height: 60px !important;
-    backdrop-filter: blur(10px) !important;
-    transition: all 0.3s ease !important;
+.stTextInput input {
+    background: white !important;
+    color: #333 !important;
+    border-radius: 15px !important;
+    border: none !important;
+    height: 55px !important;
+    font-size: 16px !important;
+    padding-left: 15px !important;
 }
-.stTextInput > div > div > input::placeholder { color: rgba(255,255,255,0.7) !important; }
-.stTextInput > div > div > input:focus {
-    box-shadow: 0 0 25px rgba(255,255,255,0.25) !important;
-    background: rgba(255,255,255,0.28) !important;
-}
-.stTextInput > label { color: white !important; font-weight: 500 !important; font-size: 14px !important; }
 
 /* ── Tombol ── */
 .stButton > button {
@@ -131,11 +124,12 @@ html, body, [class*="css"] {
     border-radius: 60px !important;
     font-family: 'Poppins', sans-serif !important;
     font-weight: 600 !important;
-    font-size: 15px !important;
+    font-size: 18px !important;
     padding: 14px 36px !important;
     transition: all 0.3s ease !important;
     box-shadow: 0 5px 20px rgba(0,0,0,0.15) !important;
     width: 100% !important;
+    height: 55px !important;
 }
 .stButton > button:hover {
     transform: translateY(-2px) !important;
@@ -516,23 +510,42 @@ def main():
         <p class="hero-subtitle">Sistem Temu Kembali Informasi Berita Indonesia · TF-IDF + Query Expansion</p>
     </div>
     """, unsafe_allow_html=True)
+    st.success(
+    "✅ Query Expansion aktif secara otomatis menggunakan sinonim untuk meningkatkan recall pencarian."
+)
 
     # ── Panel Pencarian ──
     col_left, col_center, col_right = st.columns([1, 3, 1])
     with col_center:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 
-        query_input  = st.text_input("", placeholder="Cari sesuatu yang menarik...", label_visibility="collapsed")
-        
-        col_a, col_b = st.columns(2)
-        with col_a:
-            use_expansion = st.checkbox("🔄 Gunakan Query Expansion", value=False)
-        with col_b:
-            top_n = st.selectbox("Jumlah hasil", [5, 10, 20], index=1, label_visibility="visible")
+        query_input = st.text_input(
+    "Masukkan kata kunci",
+    placeholder="Contoh: harga bbm, AI, Prabowo..."
+)
 
-        threshold = st.slider("Threshold relevansi", 0.01, 0.5, 0.1, 0.01)
+col1, col2 = st.columns([2,1])
 
-        search_btn   = st.button("🔍  Cari Sekarang")
+with col1:
+    threshold = st.slider(
+        "Threshold relevansi",
+        0.01,
+        0.5,
+        0.1,
+        0.01
+    )
+
+with col2:
+    top_n = st.selectbox(
+        "Jumlah hasil",
+        [5,10,20],
+        index=1
+    )
+
+search_btn = st.button(
+    "🔍 Cari Berita",
+    use_container_width=True
+)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Load & Index data ──
@@ -604,7 +617,7 @@ def main():
             """, unsafe_allow_html=True)
 
             # Sinonim yang dipakai
-            if use_expansion and synonyms_used:
+            if usynonyms_used:
                 syn_html = ""
                 for tok, syns in zip(query_tokens, synonyms_used):
                     badges = "".join(f'<span class="badge">{s}</span> ' for s in syns)
