@@ -55,9 +55,8 @@ html, body, [class*="css"] {
 
 /* ── Hero Section ── */
 .hero-section {
-    text-align: center;
-    padding: 20px 20px 10px;
-    animation: fadeInDown 0.8s ease;
+    text-align:center;
+    padding:20px 20px 5px;
 }
 
 .hero-logo {
@@ -76,7 +75,7 @@ html, body, [class*="css"] {
 }
 
 .hero-title {
-    font-size: 42px;
+    font-size: 52px;
     font-weight: 700;
     color: white;
     margin-bottom: 8px;
@@ -93,16 +92,13 @@ html, body, [class*="css"] {
 
 /* ── Glass Card ── */
 .glass-card {
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(25px);
     border: 1px solid rgba(255,255,255,0.25);
-    backdrop-filter: blur(18px);
-    border-radius: 28px;
-    padding: 25px;
-    max-width: 900px;
-    margin: auto;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    margin-bottom: 24px;
-    animation: fadeInUp 0.6s ease;
+    border-radius: 30px;
+    padding: 50px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+    margin-top: 20px;
 }
 
 /* ── Search Input ── */
@@ -507,42 +503,32 @@ def main():
     <div class="hero-section">
         <div class="hero-logo">🔍</div>
         <h1 class="hero-title">Search Engine</h1>
-        <p class="hero-subtitle">Sistem Temu Kembali Informasi Berita Indonesia · TF-IDF + Query Expansion</p>
+        <p class="hero-subtitle">Mesin Pencari Berita Indonesia</p>
     </div>
     """, unsafe_allow_html=True)
-    st.success(
-    "✅ Query Expansion aktif secara otomatis menggunakan sinonim untuk meningkatkan recall pencarian."
-)
 
     # ── Panel Pencarian ──
-    col_left, col_center, col_right = st.columns([1, 3, 1])
+    use_expansion = True
+    threshold = 0.1
+    top_n = 10
+    
+    col_left, col_center, col_right = st.columns([1,2,1])
+    
     with col_center:
+    
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-
-        query_input = st.text_input("Masukkan kata kunci",placeholder="Contoh: harga bbm, AI, Prabowo...")
-
-        col1, col2 = st.columns([2,1])
-        
-        with col1:
-            threshold = st.slider(
-                "Threshold relevansi",
-                0.01,
-                0.5,
-                0.1,
-                0.01
-            )
-
-        with col2:
-            top_n = st.selectbox(
-                "Jumlah hasil",
-                [5,10,20],
-                index=1
-            )
-        
+    
+        query_input = st.text_input(
+            "",
+            placeholder="Cari berita yang ingin Anda temukan...",
+            label_visibility="collapsed"
+        )
+    
         search_btn = st.button(
-            "🔍 Cari Berita",
+            "🔍 Cari",
             use_container_width=True
         )
+    
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Load & Index data ──
