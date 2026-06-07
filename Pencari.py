@@ -519,33 +519,30 @@ def main():
     with col_center:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 
-        query_input = st.text_input(
-    "Masukkan kata kunci",
-    placeholder="Contoh: harga bbm, AI, Prabowo..."
-)
+        query_input = st.text_input("Masukkan kata kunci",placeholder="Contoh: harga bbm, AI, Prabowo...")
 
-col1, col2 = st.columns([2,1])
+        col1, col2 = st.columns([2,1])
+        
+        with col1:
+            threshold = st.slider(
+                "Threshold relevansi",
+                0.01,
+                0.5,
+                0.1,
+                0.01
+            )
 
-with col1:
-    threshold = st.slider(
-        "Threshold relevansi",
-        0.01,
-        0.5,
-        0.1,
-        0.01
-    )
-
-with col2:
-    top_n = st.selectbox(
-        "Jumlah hasil",
-        [5,10,20],
-        index=1
-    )
-
-search_btn = st.button(
-    "🔍 Cari Berita",
-    use_container_width=True
-)
+        with col2:
+            top_n = st.selectbox(
+                "Jumlah hasil",
+                [5,10,20],
+                index=1
+            )
+        
+        search_btn = st.button(
+            "🔍 Cari Berita",
+            use_container_width=True
+        )
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Load & Index data ──
