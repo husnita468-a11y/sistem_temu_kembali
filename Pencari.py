@@ -550,7 +550,6 @@ def main():
     top_n = 10
     
     query_input = st.text_input("Masukkan kata kunci",placeholder="Contoh: harga bbm, AI, Prabowo...")
-        use_expansion = True
         
         col1, col2 = st.columns([2,1])
         
