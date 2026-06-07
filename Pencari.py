@@ -91,22 +91,20 @@ html, body, [class*="css"] {
 }
 
 /* Search */
-    .search-box{
+   .search-box{
     background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(18px);
-    border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.20);
 
     border-radius: 30px;
 
-    padding: 50px 40px;
+    padding: 40px;
 
-    margin-top: 20px;
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 
     text-align:center;
 
-    box-shadow:
-    0 8px 32px rgba(0,0,0,0.15);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
 }
 
 .search-logo{
@@ -115,17 +113,15 @@ html, body, [class*="css"] {
 }
 
 .search-title{
-    font-size:52px;
     color:white;
+    font-size:48px;
     font-weight:700;
     margin-bottom:10px;
 }
 
 .search-subtitle{
-    color:white;
-    opacity:0.85;
-    font-size:18px;
-    margin-bottom:25px;
+    color:rgba(255,255,255,0.9);
+    font-size:16px;
 }
 
     /* Responsive */
@@ -150,28 +146,25 @@ html, body, [class*="css"] {
 
     }
 
-.stTextInput input{
+.stTextInput > div > div > input{
+    background: rgba(255,255,255,0.95) !important;
+    border:none !important;
     border-radius:50px !important;
+    color:#333 !important;
 
     height:60px !important;
 
-    background:rgba(255,255,255,0.85)!important;
+    padding-left:20px !important;
 
-    border:none !important;
-
-    font-size:18px !important;
-
-    padding-left:25px !important;
+    font-size:17px !important;
 }
 
 .stButton > button{
     border-radius:50px !important;
 
     height:60px !important;
-
     font-size:18px !important;
-
-    font-weight:600 !important;
+    border-radius:50px !important;
 }
 
 /* ── Selectbox ── */
@@ -540,24 +533,13 @@ def main():
     URLS              = load_dataset_and_index()
 
     # ── Hero ──
-    st.markdown("""
-    <div class="hero-section">
-        <div class="hero-logo">🔍</div>
-        <h1 class="hero-title">Search Engine</h1>
-        <p class="hero-subtitle">Mesin Pencari Berita Indonesia</p>
-    </div>
-    """, unsafe_allow_html=True)
+
 
     # ── Panel Pencarian ──
-    use_expansion = True
-    threshold = 0.1
-    top_n = 10
-    
-    query_input = st.text_input("Masukkan kata kunci",placeholder="Contoh: harga bbm, AI, Prabowo...")
-        
+
     use_expansion = True
     
-    col_left, col_center, col_right = st.columns([1,3,1])
+    col_left, col_center, col_right = st.columns([1, 3, 1])
     
     with col_center:
     
@@ -573,14 +555,32 @@ def main():
     
         query_input = st.text_input(
             "",
-            placeholder="Cari sesuatu yang menarik..."
+            placeholder="Cari sesuatu yang menarik...",
+            label_visibility="collapsed"
         )
+    
+        col1, col2 = st.columns(2)
+    
+        with col1:
+            top_n = st.selectbox(
+                "Jumlah hasil",
+                [5, 10, 20],
+                index=1
+            )
+    
+        with col2:
+            threshold = st.slider(
+                "Threshold relevansi",
+                0.01,
+                0.50,
+                0.10,
+                0.01
+            )
     
         search_btn = st.button(
             "🔍 Cari Sekarang",
             use_container_width=True
-        )
-        st.markdown('</div>', unsafe_allow_html=True)  
+        ) 
 
     # ── Load & Index data ──
     if "df" not in st.session_state or "vectorizer" not in st.session_state:
