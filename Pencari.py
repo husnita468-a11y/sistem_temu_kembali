@@ -148,6 +148,28 @@ html, body, [class*="css"] {
       transform:translateY(-50%) scale(1.1);
     }
 
+    /* Responsive */
+    @media(max-width:768px){
+
+      .glass-box{
+        padding:35px 25px;
+      }
+
+      h1{
+        font-size:36px;
+      }
+
+      .subtitle{
+        font-size:15px;
+      }
+
+      .search-box input{
+        height:60px;
+        font-size:16px;
+      }
+
+    }
+
 /* ── Selectbox ── */
 .stSelectbox > div > div {
     background: rgba(255,255,255,0.18) !important;
@@ -527,22 +549,15 @@ def main():
     threshold = 0.1
     top_n = 10
     
-    col_left, col_center, col_right = st.columns([1,2,1])
-    
-    with col_center:
-    
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    
-        query_input = st.text_input(
-            "",
-            placeholder="Cari berita yang ingin Anda temukan...",
-            label_visibility="collapsed"
-        )
-    
-        search_btn = st.button(
-            "🔍 Cari",
-            use_container_width=True
-        )
+    <div class="search-box">
+
+      <input type="text" placeholder="Cari sesuatu yang menarik...">
+
+      <button class="search-btn">
+        <i class="bi bi-search"></i>
+      </button>
+
+    </div>
     
         st.markdown('</div>', unsafe_allow_html=True)
 
