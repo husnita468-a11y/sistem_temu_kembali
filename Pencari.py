@@ -530,6 +530,158 @@ def load_and_scrape_dataset():
         "https://nasional.kompas.com/read/2026/03/03/11121141/kemenkeu-catat-penerimaan-pajak-awal-tahun-tumbuh-positif",
     ]
 
+    # ─────────────────────────────────────────────
+# FUNGSI SCRAPING
+# ─────────────────────────────────────────────
+@st.cache_data(show_spinner=False, ttl=3600)
+def scrape_articles(urls):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    data = []
+    for i, url in enumerate(urls):
+        try:
+            page    = requests.get(url.strip(), headers=headers, timeout=10)
+            soup    = BeautifulSoup(page.text, "html.parser")
+            h1      = soup.find("h1")
+            judul   = h1.get_text(strip=True) if h1 else "Tanpa Judul"
+            content = soup.find("div", {"class": "read__content"})
+            text    = ""
+            if content:
+                paragraf = content.find_all("p")
+                text = " ".join([p.get_text() for p in paragraf])
+            data.append({"No": i + 1, "URL": url.strip(), "Judul": judul, "Text": text})
+        except Exception:
+            data.append({"No": i + 1, "URL": url.strip(), "Judul": "Error", "Text": ""})
+    return pd.DataFrame(data)
+
+# ─────────────────────────────────────────────
+# FUNGSI PREPROCESSING
+# ─────────────────────────────────────────────
+def preprocess_text(text, stopword, stemmer):
+    text = text.lower()
+    text = re.sub(r'http\S+', '', text)
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    text = stopword.remove(text)
+    text = stemmer.stem(text)
+    return text
+
+def preprocess_query(query_text, stopword, stemmer):
+    q = query_text.lower()
+    q = re.sub(r'[^a-zA-Z\s]', '', q)
+    q = stopword.remove(q)
+    tokens = q.split()
+    tokens = [stemmer.stem(w) for w in tokens]
+    return tokens
+
+# ─────────────────────────────────────────────
+# FUNGSI SINONIM (Query Expansion)
+# ─────────────────────────────────────────────
+thesaurus_cache = {}
+
+def get_sinonim(kata):
+    if kata in thesaurus_cache:
+        return thesaurus_cache[kata]
+    try:
+        data_form = {"q": kata}
+        encoded   = urllib.parse.urlencode(data_form).encode("utf-8")
+        content   = urllib.request.urlopen(
+            "http://www.sinonimkata.com/search.php", encoded, timeout=5
+        )
+        soup      = BeautifulSoup(content, 'html.parser')
+        td        = soup.find('td', attrs={'width': '90%'})
+        if td:
+            synonym = [a.getText() for a in td.find_all('a')]
+            result  = [kata] + synonym
+        else:
+            result  = [kata]
+    except Exception:
+        result = [kata]
+    thesaurus_cache[kata] = result
+    return result
+
+def filter_sinonim_dinamis(kata, sinonim_list, query_words, vectorizer,
+                           tfidf_matrix, top_n=3, threshold=0.7):
+    query_asli  = " ".join(query_words)
+    q_asli_vec  = vectorizer.transform([query_asli])
+    result_asli = cosine_similarity(tfidf_matrix, q_asli_vec).flatten()
+    hasil       = []
+    idx_kata    = query_words.index(kata)
+
+    for s in sinonim_list:
+        if s == kata:
+            hasil.append((s, 1.0))
+            continue
+        query_variasi       = query_words.copy()
+        query_variasi[idx_kata] = s
+        q_var_vec           = vectorizer.transform([" ".join(query_variasi)])
+        result_variasi      = cosine_similarity(tfidf_matrix, q_var_vec).flatten()
+        norm_asli           = np.linalg.norm(result_asli)
+        norm_var            = np.linalg.norm(result_variasi)
+        if norm_asli > 0 and norm_var > 0:
+            skor = np.dot(result_asli, result_variasi) / (norm_asli * norm_var)
+        else:
+            skor = 0.0
+        if skor >= threshold:
+            hasil.append((s, skor))
+
+    hasil = sorted(hasil, key=lambda x: x[1], reverse=True)
+    return [x[0] for x in hasil[:top_n]]
+
+# ─────────────────────────────────────────────
+# FUNGSI PENCARIAN UTAMA
+# ─────────────────────────────────────────────
+def search(query_tokens, vectorizer, tfidf_matrix, df,
+           use_expansion=False, threshold=0.1, top_n=10):
+    if use_expansion:
+        list_synonym = []
+        for kata in query_tokens:
+            sinonim = get_sinonim(kata)
+            sinonim = filter_sinonim_dinamis(
+                kata, sinonim, query_tokens, vectorizer, tfidf_matrix,
+                top_n=3, threshold=0.7
+            )
+            list_synonym.append(sinonim)
+
+        qs = set()
+        for i, kata in enumerate(query_tokens):
+            for s in list_synonym[i]:
+                kombinasi    = query_tokens.copy()
+                kombinasi[i] = s
+                qs.add(" ".join(kombinasi))
+        qs.add(" ".join(query_tokens))
+    else:
+        qs    = {" ".join(query_tokens)}
+        list_synonym = [[k] for k in query_tokens]
+
+    max_result = []
+    for q in qs:
+        q_vec  = vectorizer.transform([q])
+        result = cosine_similarity(tfidf_matrix, q_vec)
+        for i in range(len(result)):
+            if result[i][0] > threshold:
+                max_result.append([i, result[i][0], q])
+
+    max_result = sorted(max_result, key=lambda x: x[1], reverse=True)
+    seen, new_result = set(), []
+    for item in max_result:
+        if item[0] not in seen:
+            seen.add(item[0])
+            new_result.append(item)
+
+    # Evaluasi P/R/F1
+    q_vec_asli  = vectorizer.transform([" ".join(query_tokens)])
+    relevant    = {i for i in range(len(df))
+                   if cosine_similarity(tfidf_matrix[i], q_vec_asli)[0][0] >= threshold}
+    retrieved   = {item[0] for item in new_result}
+    tp          = relevant & retrieved
+    precision   = len(tp) / len(retrieved) if retrieved else 0
+    recall      = len(tp) / len(relevant)  if relevant  else 0
+    f1          = (2 * precision * recall) / (precision + recall) \
+                  if (precision + recall) > 0 else 0
+
+    synonyms_used = list_synonym if use_expansion else None
+    return new_result[:top_n], precision, recall, f1, synonyms_used
+               
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     titles_list, contents_list, valid_urls = [], [], []
 
