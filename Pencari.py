@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Mesin Pencari Berita Indonesia
-Sistem Temu Kembali Informasi dengan TF-IDF + Query Expansion
-Deploy via Streamlit
+Mesin Pencari Berita Indonesia — Mobile-First Revamp (Manual Query Expansion)
+Sistem Temu Kembali Informasi (TF-IDF + Cosine Similarity + Query Expansion)
+Design: Mature, editorial, production-grade — fully mobile responsive
 """
 
 import re
 import time
-import pickle
 import urllib.parse
 import urllib.request
-
 import numpy as np
 import pandas as pd
 import requests
@@ -22,652 +20,805 @@ from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFacto
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
 # ─────────────────────────────────────────────
-# KONFIGURASI HALAMAN
+# 1. KONFIGURASI HALAMAN
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="Mesin Pencari Berita",
+    page_title="STKI · Mesin Berita",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 # ─────────────────────────────────────────────
-# CSS CUSTOM (berdasarkan desain HTML yang ada)
+# 2. DESIGN SYSTEM CSS — MOBILE FIRST
 # ─────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-@import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
+/* ── FONT IMPORT ─────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Poppins', sans-serif;
+/* ── DESIGN TOKENS ───────────────────────────────── */
+:root {
+  --ink:        #0d0c0b;
+  --charcoal:   #28261f;
+  --stone:      #5e5a54;
+  --mist:       #9e9b96;
+  --hairline:   #e4e2de;
+  --paper:      #f7f6f4;
+  --white:      #ffffff;
+  --indigo-900: #141f59;
+  --indigo-700: #213183;
+  --indigo-500: #3b4eb8;
+  --blue:       #0075de;
+  --blue-light: #e8f3fd;
+  --green:      #1aae39;
+  --teal:       #2a9d99;
+  --orange:     #dd5b00;
+  --pink:       #e8438a;
+  --sky:        #4fa3e8;
+  --violet:     #9b6fdb;
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.06);
+  --shadow-md:  0 2px 4px rgba(0,0,0,.04), 0 6px 24px rgba(0,0,0,.08);
+  --radius-sm:  8px;
+  --radius-md:  14px;
+  --radius-lg:  20px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
 }
 
-/* ── Background ── */
-.stApp {
-    background: linear-gradient(135deg, #71d1e4 0%, #4db8d4 50%, #2a9fb8 100%);
-    min-height: 100vh;
+/* ── BASE RESET ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, [class*="st-emotion-cache"],
+.stApp, [data-testid="stAppViewContainer"] {
+  font-family: 'DM Sans', system-ui, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── Sembunyikan elemen bawaan Streamlit ── */
-#MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 2rem; padding-bottom: 2rem; }
+/* Hide default Streamlit chrome */
+#MainMenu, header, footer { visibility: hidden; }
+[data-testid="stDecoration"] { display: none; }
 
-/* ── Hero Section ── */
-.hero-section {
-    text-align: center;
-    padding: 60px 20px 40px;
-    animation: fadeInDown 0.8s ease;
+/* App background */
+.stApp { background-color: var(--paper) !important; }
+
+/* Remove default block-container padding quirk on mobile */
+[data-testid="stAppViewBlockContainer"],
+.block-container {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  max-width: 960px !important;
 }
 
-.hero-logo {
-    width: 90px;
-    height: 90px;
-    margin: 0 auto 20px;
-    border-radius: 25px;
-    background: rgba(255,255,255,0.2);
-    backdrop-filter: blur(10px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 40px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.3);
+/* ── MASTHEAD ─────────────────────────────────────── */
+.masthead {
+  background: var(--white);
+  margin: -4rem -1rem 2.5rem -1rem;
+  padding: 0 clamp(16px, 4vw, 48px);
+  border-bottom: 2px solid var(--ink);
 }
 
-.hero-title {
-    font-size: 52px;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 8px;
-    text-shadow: 0 2px 15px rgba(0,0,0,0.15);
-    letter-spacing: -1px;
+.masthead-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 14px 0 12px 0;
+  border-bottom: 1px solid var(--hairline);
 }
 
-.hero-subtitle {
-    color: rgba(255,255,255,0.9);
-    font-size: 17px;
-    font-weight: 300;
-    margin-bottom: 0;
+.masthead-wordmark {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  font-weight: 400;
 }
 
-/* ── Glass Card ── */
-.glass-card {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.25);
-    backdrop-filter: blur(18px);
-    border-radius: 28px;
-    padding: 36px 40px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    margin-bottom: 24px;
-    animation: fadeInUp 0.6s ease;
+.masthead-dateline {
+  font-size: 11px;
+  color: var(--stone);
+  letter-spacing: 0.03em;
+  text-align: right;
 }
 
-/* ── Search Input ── */
-.stTextInput > div > div > input {
-    background: rgba(255,255,255,0.2) !important;
-    border: 1.5px solid rgba(255,255,255,0.4) !important;
-    border-radius: 60px !important;
-    color: white !important;
-    font-family: 'Poppins', sans-serif !important;
-    font-size: 17px !important;
-    padding: 18px 28px !important;
-    height: 60px !important;
-    backdrop-filter: blur(10px) !important;
-    transition: all 0.3s ease !important;
+.masthead-title-row {
+  text-align: center;
+  padding: clamp(20px, 4vw, 32px) 0 clamp(16px, 3vw, 24px) 0;
+  border-bottom: 1px solid var(--ink);
 }
-.stTextInput > div > div > input::placeholder { color: rgba(255,255,255,0.7) !important; }
-.stTextInput > div > div > input:focus {
-    box-shadow: 0 0 25px rgba(255,255,255,0.25) !important;
-    background: rgba(255,255,255,0.28) !important;
-}
-.stTextInput > label { color: white !important; font-weight: 500 !important; font-size: 14px !important; }
 
-/* ── Tombol ── */
+.masthead-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: clamp(36px, 7.5vw, 76px);
+  color: var(--ink);
+  line-height: 1.0;
+  letter-spacing: clamp(-1px, -0.5vw, -2px);
+  font-weight: 400;
+  margin: 0;
+}
+
+.masthead-desc {
+  font-size: clamp(12px, 1.8vw, 13px);
+  color: var(--stone);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 10px;
+}
+
+/* ── SECTION LABELS ──────────────────────────────── */
+.section-label {
+  font-family: 'DM Serif Display', Georgia, serif;
+  color: var(--ink);
+  font-size: clamp(20px, 3.5vw, 26px);
+  font-weight: 400;
+  letter-spacing: -0.3px;
+  margin: 24px 0 4px 0;
+  line-height: 1.25;
+}
+.section-sub {
+  color: var(--stone);
+  font-size: clamp(12px, 2vw, 14px);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+/* ── SEARCH BAR WRAPPER ──────────────────────────── */
+.search-wrap {
+  background: var(--white);
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 16px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.search-wrap:focus-within {
+  border-color: var(--indigo-500);
+  box-shadow: 0 0 0 3px rgba(59,78,184,0.12), var(--shadow-sm);
+}
+
+/* Override Streamlit text input inside our wrapper */
+.search-wrap [data-testid="stTextInput"] > div > div {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+.search-wrap [data-testid="stTextInput"] input {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 15px !important;
+  padding: 14px 16px !important;
+  min-height: 52px;
+  color: var(--ink) !important;
+  background: transparent !important;
+}
+.search-wrap [data-testid="stTextInput"] input::placeholder {
+  color: var(--mist) !important;
+}
+
+/* ── RESULT COUNT BADGE ──────────────────────────── */
+.result-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--paper);
+  color: var(--stone);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+/* ── NEWS CARD ───────────────────────────────────── */
+.news-card {
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 0;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow var(--transition), transform var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+.news-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.card-accent {
+  height: 4px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.card-body-pad {
+  padding: clamp(16px, 3vw, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.card-rank-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.rank-badge {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+  margin-top: 2px;
+}
+
+.card-title-text {
+  font-family: 'DM Serif Display', Georgia, serif;
+  color: var(--ink);
+  font-size: clamp(15px, 2.5vw, 18px);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.card-excerpt {
+  color: var(--stone);
+  font-size: clamp(12px, 1.8vw, 13.5px);
+  line-height: 1.7;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* Card Footer */
+.card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+  margin-top: 4px;
+}
+
+.card-footer-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.score-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--charcoal);
+  white-space: nowrap;
+  font-feature-settings: "tnum";
+}
+
+.expansion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--mist);
+  min-width: 0;
+  overflow: hidden;
+}
+.expansion-chip span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: clamp(80px, 25vw, 220px);
+}
+
+.open-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink) !important;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--ink);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: transparent;
+  transition: opacity var(--transition);
+}
+.open-link:hover {
+  opacity: 0.55;
+  text-decoration: none;
+}
+
+/* Relevance bar */
+.rel-bar-track {
+  background: var(--hairline);
+  height: 3px;
+  border-radius: 9999px;
+  width: 100%;
+  overflow: hidden;
+}
+.rel-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── EMPTY STATE ─────────────────────────────────── */
+.empty-state {
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: clamp(32px, 6vw, 56px) 24px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+.empty-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  display: block;
+}
+.empty-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  color: var(--charcoal);
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.empty-sub {
+  color: var(--stone);
+  font-size: 14px;
+  max-width: 320px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ── DIVIDER ─────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--hairline);
+  margin: 28px 0;
+}
+
+/* ── SITE FOOTER ─────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--hairline);
+  padding: clamp(24px, 4vw, 40px) 16px;
+  text-align: center;
+  color: var(--mist);
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 48px;
+}
+.site-footer strong { color: var(--stone); }
+.site-footer code {
+  background: var(--hairline);
+  color: var(--charcoal);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 11px;
+}
+
+/* ── SLIDER & RADIO OVERRIDES ────────────────────── */
+[data-testid="stSlider"] > div { padding-top: 4px; }
+[data-testid="stSlider"] [data-testid="stTickBar"] { display: none; }
+
+/* Styling Streamlit Radio Buttons to blend with editorial theme */
+[data-testid="stRadio"] > div {
+    gap: 16px;
+}
+
+/* ── BUTTON OVERRIDE ─────────────────────────────── */
 .stButton > button {
-    background: rgba(255,255,255,0.95) !important;
-    color: #1a7a8f !important;
-    border: none !important;
-    border-radius: 60px !important;
-    font-family: 'Poppins', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 15px !important;
-    padding: 14px 36px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.15) !important;
-    width: 100% !important;
+  background: var(--ink) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  padding: 0 24px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  width: 100% !important;
+  transition: background var(--transition), transform var(--transition) !important;
+  box-shadow: none !important;
 }
 .stButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.2) !important;
-    background: white !important;
+  background: var(--charcoal) !important;
+  transform: translateY(-1px) !important;
 }
 
-/* ── Selectbox ── */
-.stSelectbox > div > div {
-    background: rgba(255,255,255,0.18) !important;
-    border: 1.5px solid rgba(255,255,255,0.35) !important;
-    border-radius: 16px !important;
-    color: white !important;
-}
-.stSelectbox label { color: white !important; font-weight: 500 !important; font-size: 14px !important; }
-
-/* ── Slider ── */
-.stSlider label { color: white !important; font-weight: 500 !important; font-size: 14px !important; }
-.stSlider p { color: rgba(255,255,255,0.8) !important; }
-
-/* ── Checkbox ── */
-.stCheckbox label { color: white !important; font-weight: 400 !important; }
-
-/* ── Hasil pencarian card ── */
-.result-card {
-    background: rgba(255,255,255,0.92);
-    border-radius: 20px;
-    padding: 24px 28px;
-    margin-bottom: 16px;
-    border-left: 4px solid #1a7a8f;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    transition: all 0.25s ease;
-    animation: fadeInUp 0.4s ease;
-}
-.result-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 28px rgba(0,0,0,0.15);
-}
-.result-rank {
-    font-size: 12px;
-    font-weight: 600;
-    color: #1a7a8f;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 6px;
-}
-.result-title {
-    font-size: 17px;
-    font-weight: 600;
-    color: #1a2a35;
-    margin-bottom: 8px;
-    line-height: 1.4;
-}
-.result-url {
-    font-size: 13px;
-    color: #1a7a8f;
-    margin-bottom: 10px;
-    word-break: break-all;
-}
-.result-score-bar {
-    height: 6px;
-    background: linear-gradient(90deg, #71d1e4, #1a7a8f);
-    border-radius: 10px;
-    margin-top: 10px;
-}
-.result-meta {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    margin-top: 8px;
-    flex-wrap: wrap;
-}
-.badge {
-    background: rgba(26,122,143,0.1);
-    color: #1a7a8f;
-    border-radius: 20px;
-    padding: 3px 12px;
-    font-size: 12px;
-    font-weight: 500;
-    border: 1px solid rgba(26,122,143,0.2);
-}
-
-/* ── Metrik ── */
-.metric-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 8px;
-}
-.metric-box {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
-    backdrop-filter: blur(10px);
-}
-.metric-label { color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 400; margin-bottom: 4px; }
-.metric-value { color: white; font-size: 28px; font-weight: 700; letter-spacing: -1px; }
-
-/* ── Info banner ── */
-.info-banner {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 16px;
-    padding: 16px 20px;
-    color: white;
-    font-size: 14px;
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-/* ── Animasi ── */
-@keyframes fadeInDown {
-    from { opacity: 0; transform: translateY(-30px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Footer ── */
-.footer {
-    text-align: center;
-    color: rgba(255,255,255,0.7);
-    font-size: 13px;
-    padding: 30px 0 10px;
-}
-
-/* ── Divider ── */
-hr { border-color: rgba(255,255,255,0.2) !important; }
-
-/* ── Spinner ── */
-.stSpinner > div { border-top-color: white !important; }
-
-/* ── Expander ── */
-.streamlit-expanderHeader {
-    color: white !important;
-    background: rgba(255,255,255,0.1) !important;
-    border-radius: 12px !important;
+@media (max-width: 640px) {
+  .masthead { margin: -2rem -1rem 2rem -1rem; }
+  .masthead-dateline { display: none; }
+  .masthead-title { letter-spacing: -0.5px; }
+  .card-footer { flex-direction: column; align-items: flex-start; }
+  .open-link { margin-top: 4px; }
+  .rank-badge { width: 22px; height: 22px; font-size: 10px; border-radius: 5px; }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
-# INISIALISASI PREPROCESSING TOOLS
-# ─────────────────────────────────────────────
-@st.cache_resource(show_spinner=False)
-def load_nlp_tools():
-    sw_factory  = StopWordRemoverFactory()
-    stopword    = sw_factory.create_stop_word_remover()
-    st_factory  = StemmerFactory()
-    stemmer     = st_factory.create_stemmer()
-    return stopword, stemmer
 
-@st.cache_resource(show_spinner=False)
-def load_dataset_and_index():
-    """Muat dataset & bangun indeks TF-IDF."""
-    URLS = [
+# ─────────────────────────────────────────────
+# 3. BACKEND — SCRAPING & PROCESSING
+# ─────────────────────────────────────────────
+
+@st.cache_data(show_spinner=False)
+def load_and_scrape_dataset():
+    """Scraping 50 link berita Kompas"""
+    urls = [
         "https://nasional.kompas.com/read/2026/03/09/17303561/prabowo-ingatkan-rakyat-indonesia-bersiap-hadapi-kesulitan-akibat-perang",
         "https://nasional.kompas.com/read/2026/03/10/13125731/memahami-kerja-ombudsman-di-tengah-penggeledahan-terkait-kasus-cpo",
-        "https://nasional.kompas.com/read/2026/03/10/12344451/puan-sebut-dpr-dukung-pembatasan-medsos-untuk-anak-agar-tak-kebablasan",
-        "https://nasional.kompas.com/read/2026/03/06/20503101/klarifikasi-bahlil-soal-stok-bbm-sisa-20-hari-yang-bikin-warga-panic-buying",
-        "https://regional.kompas.com/read/2026/03/06/135609978/jokowi-ungkap-isi-pertemuan-dengan-prabowo-di-istana-bahas-bop-dan-tarif",
-        "https://nasional.kompas.com/read/2026/03/09/11502271/kejagung-geledah-kantor-dan-rumah-komisioner-ombudsman-terkait-kasus-cpo",
-        "https://nasional.kompas.com/read/2026/03/10/07193531/polri-jelaskan-simulator-berkuda-yang-viral-harganya-rp-1-miliar.",
-        "https://nasional.kompas.com/read/2026/03/10/09142961/dua-ott-dalam-seminggu-dua-bupati-ditangkap-kpk.",
-        "https://nasional.kompas.com/read/2026/03/10/09411181/kpk-periksa-ketum-pp-japto-soerjosoemarno-jadi-saksi-kasus-gratifikasi.",
-        "https://nasional.kompas.com/read/2026/03/06/20471631/semarakkan-ramadhan-kasatgas-tito-salurkan-bantuan-untuk-puluhan-ribu-korban",
-        "https://money.kompas.com/read/2026/03/01/055816426/daftar-harga-bbm-terbaru-1-maret-2026-di-seluruh-indonesia",
-        "https://money.kompas.com/read/2026/03/07/080016726/cek-harga-pertamax-hari-ini-7-maret-2026-di-spbu-seluruh-indonesia",
-        "https://money.kompas.com/read/2026/03/10/204239226/bni-bbni-tebar-dividen-rp-1303-t-analis-soroti-sinyal-stabilitas",
-        "https://money.kompas.com/read/2026/03/09/170101426/imbas-fitch-turunkan-outlook-indonesia-investor-mulai-khawatir-kebijakan",
-        "https://money.kompas.com/read/2026/03/04/204140126/menkeu-as-tarif-global-15-persen-kemungkinan-berlaku-minggu-ini",
-        "https://money.kompas.com/read/2026/03/10/123716426/wifi-dan-nokia-jajaki-pengembangan-infrastruktur-digital-6g",
-        "https://money.kompas.com/read/2026/03/07/075736926/harga-emas-di-pegadaian-7-maret-2026-galeri-24-dan-ubs-stabil",
-        "https://money.kompas.com/read/2026/03/10/120912026/harga-emas-pegadaian-hari-ini-10-3-kompak-menguat-cek-daftar-ubs-galeri-24",
-        "https://money.kompas.com/read/2026/03/04/202228826/selat-hormuz-bergejolak-pengalihan-impor-minyak-ke-as-jadi-alternatif",
-        "https://money.kompas.com/read/2026/03/10/040400926/120-juta-unit-sepeda-motor-bensin-dikonversi-ke-listrik-bahlil--untuk-kurangi.",
-        "https://tekno.kompas.com/read/2026/03/10/08040087/nintendo-gugat-as-minta-uang-tarif-impor-trump-dikembalikan",
-        "https://tekno.kompas.com/read/2026/03/10/07000057/ini-dia-hiroh-phone-hp-yang-punya-tombol-fisik-darurat-untuk-anti-sadap",
-        "https://tekno.kompas.com/read/2026/03/09/12240037/daftar-harga-iphone-terbaru-9-maret-2026-iphone-13-iphone-17-series",
-        "https://tekno.kompas.com/read/2026/03/09/11220057/8-aplikasi-yang-dilarang-komdigi-buat-diakses-anak-anak-di-bawah-16-tahun",
-        "https://tekno.kompas.com/read/2026/03/08/15030037/china-bikin-baterai-nuklir-mini-bisa-tahan-50-tahun-tanpa-dicas.",
-        "https://money.kompas.com/read/2026/02/16/162901226/memutus-kutukan-generasi-ketiga-mengapa-hong-kong-jadi-opsi-strategis-bagi",
-        "https://tekno.kompas.com/read/2026/03/01/19070037/populasi-robot-ai-diprediksi-meledak-pekerja-manusia-makin-terdesak.",
-        "https://tekno.kompas.com/read/2026/03/07/14030087/robot-humanoid-mulai-kerja-di-pabrik-xiaomi.",
-        "https://regional.kompas.com/read/2026/03/05/161743778/tni-gerebek-tambang-emas-ilegal-di-madina-6-ekskavator-dan-pekerja",
-        "https://surabaya.kompas.com/read/2026/03/10/084602278/kesehatan-menurun-selama-ditahan-terdakwa-pembunuhan-bocah-sd-di-pasuruan",
-        "https://surabaya.kompas.com/read/2026/03/10/081939978/pengusaha-parsel-di-surabaya-mengeluh-sepi-dulu-terjual-1000-per-hari-kini",
-        "https://regional.kompas.com/read/2026/03/06/134815078/desa-di-kendal-ini-bagikan-thr-ke-warga-setiap-kk-dapat-rp-1-juta",
-        "https://regional.kompas.com/read/2026/03/09/193016078/dorong-pad-pemprov-maluku-siapkan-kepulauan-lucipara-jadi-wisata-bahari",
-        "https://bandung.kompas.com/read/2026/03/08/115715478/peringatan-nuzulul-quran-2000-al-quran-akan-disalurkan-ke-warga-bogor",
-        "https://regional.kompas.com/read/2026/03/10/151404778/napi-lapas-nusakambangan-kabur-hingga-menyeberang-pulau-ujungnya-ditangkap.",
-        "https://megapolitan.kompas.com/read/2026/03/09/11560641/cuaca-ekstrem-diprediksi-terjadi-hingga-12-maret-jakarta-masuk-wilayah",
-        "https://megapolitan.kompas.com/read/2026/03/09/17075531/detik-detik-warga-periuk-damai-diterjang-banjir-air-datang-tiba-tiba-saat",
-        "https://megapolitan.kompas.com/read/2026/03/10/07230411/saat-peringatan-prabowo-soal-sampah-bantargebang-jadi-kenyataan.",
-        "https://internasional.kompas.com/read/2026/03/10/061605970/trump-isyaratkan-segera-akhiri-perang-klaim-iran-sudah-lumpuh",
-        "https://lestari.kompas.com/read/2026/03/10/081200786/china-targetkan-pangkas-intensitas-karbon-17-persen-pada-2030",
-        "https://internasional.kompas.com/read/2026/03/09/080000170/as-disebut-kecewa-israel-gempur-30-pangkalan-minyak-iran-anggap.",
-        "https://internasional.kompas.com/read/2026/03/09/050356570/resmi-ayatollah-mojtaba-khamenei-terpilih-jadi-pemimpin-tertinggi-iran.",
-        "https://lestari.kompas.com/read/2026/03/09/075648886/klh-tuang-10000-liter-ecoenzym-ke-sungai-cisadane-netralkan-cemaran",
-        "https://lestari.kompas.com/read/2026/03/08/150422386/perang-emisi-dan-masa-depan-bumi",
-        "https://lestari.kompas.com/read/2026/03/09/161005186/akan-dibor-tahun-ini-pge-siapkan-infrastruktur-pltp-lumut-balai-unit-3",
-        "https://lestari.kompas.com/read/2026/03/10/130200086/bab-baru-nilai-ekonomi-karbon",
-        "https://lestari.kompas.com/read/2026/03/09/194800786/sering-cek-email-kerja-saat-akhir-pekan-waspada-dampaknya-untuk-mental",
-        "https://travel.kompas.com/read/2026/03/09/060600827/7-wisata-sejarah-di-kota-semarang-sudah-ada-yang-dari-abad-ke-17.",
-        "https://bandung.kompas.com/read/2026/02/25/204040778/truk-terparkir-seharian-di-bandung-sopir-ternyata-meninggal-di-kabin.",
-        "https://travel.kompas.com/read/2026/03/10/050500427/jadwal-dan-harga-tiket-kereta-wisata-ambarawa-saat-libur-lebaran-18-31-maret.",
+        "https://nasional.kompas.com/read/2026/03/10/12344451/puan-sebut-dpr-dukung-penuh-langkah-pemerintah-evakuasi-wni-dari-lebanon",
+        "https://nasional.kompas.com/read/2026/03/10/10492861/kejagung-geledah-kantor-ombudsman-terkait-kasus-korupsi-ekspor-cpo",
+        "https://nasional.kompas.com/read/2026/03/10/05450011/menerka-nasib-hak-angket-di-tengah-sikap-pdi-p-dan-pks-yang-belum-jelas",
+        "https://nasional.kompas.com/read/2026/03/09/21443591/pimpinan-ombudsman-benarkan-ada-penggeledahan-oleh-kejagung",
+        "https://nasional.kompas.com/read/2026/03/09/19445471/kejagung-geledah-kantor-ombudsman-terkait-kasus-korupsi-izin-ekspor-cpo",
+        "https://nasional.kompas.com/read/2026/03/09/18021661/kemenlu-pastikan-pemerintah-siapkan-langkah-terbaik-evakuasi-wni-di-lebanon",
+        "https://nasional.kompas.com/read/2026/03/09/17145711/mahfud-md-sebut-hak-angket-bukan-untuk-batalkan-hasil-pemilu-tapi-uji",
+        "https://nasional.kompas.com/read/2026/03/09/15113061/tkn-prabowo-gibran-sebut-tuduhan-kecurangan-pemilu-masif-tidak-berdasar",
+        "https://nasional.kompas.com/read/2026/03/09/14302211/pks-konsisten-dukung-hak-angket-selidiki-dugaan-kecurangan-pemilu",
+        "https://nasional.kompas.com/read/2026/03/09/12154421/kubu-anies-muhaimin-siapkan-bukti-matang-hadapi-sengketa-pemilu-di-mk",
+        "https://nasional.kompas.com/read/2026/03/09/10123511/ganjar-pranowo-tegaskan-komitmen-kawal-penyelidikan-kecurangan-pemilu",
+        "https://nasional.kompas.com/read/2026/03/09/08450031/melihat-peluang-rekonsiliasi-politik-pasca-pemilu-2026-mungkinkah-terwujud",
+        "https://nasional.kompas.com/read/2026/03/08/20153351/kpu-optimistis-rekapitulasi-suara-nasional-selesai-tepat-waktu",
+        "https://nasional.kompas.com/read/2026/03/08/18302261/bawaslu-temukan-ribuan-pelanggaran-administrasi-selama-tahapan-pemilu",
+        "https://nasional.kompas.com/read/2026/03/08/16124411/jusuf-kalla-nilai-hak-angket-bisa-luruskan-simpang-siur-isu-kecurangan",
+        "https://nasional.kompas.com/read/2026/03/08/14102551/pemerintah-pastikan-stok-pangan-aman-menjelang-bulan-ramadhan",
+        "https://nasional.kompas.com/read/2026/03/08/11253311/menteri-bumn-buka-suara-soal-rencana-efisiensi-sejumlah-perusahaan-plat-merah",
+        "https://nasional.kompas.com/read/2026/03/08/09152271/analisis-peta-koalisi-pilkada-2026-akankah-linear-dengan-pilpres",
+        "https://nasional.kompas.com/read/2026/03/07/21104431/polri-siapkan-skema-pengamanan-khusus-jelang-pengumuman-hasil-pemilu",
+        "https://nasional.kompas.com/read/2026/03/07/19251151/tkn-minta-semua-pihak-hormati-proses-rekapitulasi-resmi-kpu",
+        "https://nasional.kompas.com/read/2026/03/07/17123321/tpn-ganjar-mahfud-kumpulkan-kesaksian-warga-untuk-gugatan-ke-mk",
+        "https://nasional.kompas.com/read/2026/03/07/15102211/idw-soroti-netralitas-aparat-desa-dalam-pelaksanaan-pemilu-kemarin",
+        "https://nasional.kompas.com/read/2026/03/07/12450021/menhub-pastikan-kesiapan-infrastruktur-mudik-lebaran-2026-mulai-dikebut",
+        "https://nasional.kompas.com/read/2026/03/07/10153361/sri-mulyani-papar-kondisi-fiskal-terkini-di-hadapan-komisi-xi-dpr",
+        "https://nasional.kompas.com/read/2026/03/07/08201141/pakar-hukum-peluang-pemakzulan-presiden-lewat-hak-angket-sangat-kecil",
+        "https://nasional.kompas.com/read/2026/03/06/21452231/kpk-dalami-aliran-dana-terkait-kasus-pengadaan-barang-di-kemenag",
+        "https://nasional.kompas.com/read/2026/03/06/19301171/ma-tolak-permohonan-kasasi-terdakwa-kasus-korupsi-bts-4g-kominfo",
+        "https://nasional.kompas.com/read/2026/03/06/17154421/ahlan-syarif-terpilih-jadi-ketua-umum-pb-hmi-periode-2026-2028",
+        "https://nasional.kompas.com/read/2026/03/06/14125511/kemendikbud-ristek-alokasikan-anggaran-khusus-untuk-digitalisasi-sekolah-3t",
+        "https://nasional.kompas.com/read/2026/03/06/11103351/pemerintah-targetkan-penurunan-angka-stunting-mencapai-14-persen-tahun-ini",
+        "https://nasional.kompas.com/read/2026/03/06/09121161/menilik-kesiapan-ikn-nusantara-gelar-upacara-hut-ri-ke-81",
+        "https://nasional.kompas.com/read/2026/03/05/21154431/kejagung-periksa-tiga-saksi-baru-terkait-kasus-korupsi-timah",
+        "https://nasional.kompas.com/read/2026/03/05/19123351/dpr-minta-pemerintah-evaluasi-kebijakan-impor-beras-demi-petani",
+        "https://nasional.kompas.com/read/2026/03/05/17102211/menteri-lhk-ajak-masyarakat-perkuat-aksi-nyata-hadapi-perubahan-iklim",
+        "https://nasional.kompas.com/read/2026/03/05/14450031/bkn-pastikan-proses-seleksi-casn-2026-berjalan-transparan-dan-akuntabel",
+        "https://nasional.kompas.com/read/2026/03/05/11153321/pakar-ekonomi-prediksi-pertumbuhan-ekonomi-kuartal-i-tetap-stabil",
+        "https://nasional.kompas.com/read/2026/03/05/09101141/kemendag-pantau-ketat-pergerakan-harga-minyak-goreng-kita-di-pasar",
+        "https://nasional.kompas.com/read/2026/03/04/21302251/tni-al-gagalkan-penyelundupan-sabu-seberat-50-kg-di-perairan-aceh",
+        "https://nasional.kompas.com/read/2026/03/04/19154461/kemenkes-imbau-waspada-peningkatan-kasus-dbd-di-masa-pancaroba",
+        "https://nasional.kompas.com/read/2026/03/04/17123311/dpr-sahkan-uu-daerah-khusus-jakarta-menjadi-undang-undang",
+        "https://nasional.kompas.com/read/2026/03/04/14102241/basarnas-evakuasi-korban-banjir-bandang-di-lima-puluh-kota",
+        "https://nasional.kompas.com/read/2026/03/04/11450021/pemerintah-siapkan-insentif-pajak-baru-untuk-sektor-kendaraan-listrik",
+        "https://nasional.kompas.com/read/2026/03/04/09153311/staf-khusus-presiden-tegaskan-pembangunan-ikn-berjalan-sesuai-timeline",
+        "https://nasional.kompas.com/read/2026/03/03/21124431/kpk-eksekusi-mantan-pejabat-pajak-ke-lapas-sukamiskin",
+        "https://nasional.kompas.com/read/2026/03/03/19302211/menlu-retno-marsudi-suarakan-hak-palestina-di-sidang-dewan-ham-pbb",
+        "https://nasional.kompas.com/read/2026/03/03/17151151/bapanas-pastikan-penyaluran-bantuan-pangan-beras-tepat-sasaran",
+        "https://nasional.kompas.com/read/2026/03/03/14103321/polri-ungkap-jaringan-judi-online-internasional-beromzet-miliaran",
+        "https://nasional.kompas.com/read/2026/03/03/11121141/kemenkeu-catat-penerimaan-pajak-awal-tahun-tumbuh-positif",
     ]
-    return URLS
 
-# ─────────────────────────────────────────────
-# FUNGSI SCRAPING
-# ─────────────────────────────────────────────
-@st.cache_data(show_spinner=False, ttl=3600)
-def scrape_articles(urls):
-    headers = {"User-Agent": "Mozilla/5.0"}
-    data = []
-    for i, url in enumerate(urls):
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    titles_list, contents_list, valid_urls = [], [], []
+
+    for url in urls:
         try:
-            page    = requests.get(url.strip(), headers=headers, timeout=10)
-            soup    = BeautifulSoup(page.text, "html.parser")
-            h1      = soup.find("h1")
-            judul   = h1.get_text(strip=True) if h1 else "Tanpa Judul"
-            content = soup.find("div", {"class": "read__content"})
-            text    = ""
-            if content:
-                paragraf = content.find_all("p")
-                text = " ".join([p.get_text() for p in paragraf])
-            data.append({"No": i + 1, "URL": url.strip(), "Judul": judul, "Text": text})
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=5) as response:
+                html = response.read()
+            soup = BeautifulSoup(html, "html.parser")
+
+            title_tag = soup.find("h1", class_="read__title")
+            title = title_tag.get_text(strip=True) if title_tag else "Judul Tidak Ditemukan"
+
+            content_div = soup.find("div", class_="read__content")
+            if content_div:
+                paragraphs = content_div.find_all("p")
+                full_text = " ".join([p.get_text(strip=True) for p in paragraphs])
+            else:
+                full_text = " ".join([p.get_text(strip=True) for p in soup.find_all("p")])
+
+            titles_list.append(title)
+            contents_list.append(full_text)
+            valid_urls.append(url)
+            time.sleep(0.01)
         except Exception:
-            data.append({"No": i + 1, "URL": url.strip(), "Judul": "Error", "Text": ""})
-    return pd.DataFrame(data)
-
-# ─────────────────────────────────────────────
-# FUNGSI PREPROCESSING
-# ─────────────────────────────────────────────
-def preprocess_text(text, stopword, stemmer):
-    text = text.lower()
-    text = re.sub(r'http\S+', '', text)
-    text = re.sub(r'[^a-zA-Z\s]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    text = stopword.remove(text)
-    text = stemmer.stem(text)
-    return text
-
-def preprocess_query(query_text, stopword, stemmer):
-    q = query_text.lower()
-    q = re.sub(r'[^a-zA-Z\s]', '', q)
-    q = stopword.remove(q)
-    tokens = q.split()
-    tokens = [stemmer.stem(w) for w in tokens]
-    return tokens
-
-# ─────────────────────────────────────────────
-# FUNGSI SINONIM (Query Expansion)
-# ─────────────────────────────────────────────
-thesaurus_cache = {}
-
-def get_sinonim(kata):
-    if kata in thesaurus_cache:
-        return thesaurus_cache[kata]
-    try:
-        data_form = {"q": kata}
-        encoded   = urllib.parse.urlencode(data_form).encode("utf-8")
-        content   = urllib.request.urlopen(
-            "http://www.sinonimkata.com/search.php", encoded, timeout=5
-        )
-        soup      = BeautifulSoup(content, 'html.parser')
-        td        = soup.find('td', attrs={'width': '90%'})
-        if td:
-            synonym = [a.getText() for a in td.find_all('a')]
-            result  = [kata] + synonym
-        else:
-            result  = [kata]
-    except Exception:
-        result = [kata]
-    thesaurus_cache[kata] = result
-    return result
-
-def filter_sinonim_dinamis(kata, sinonim_list, query_words, vectorizer,
-                           tfidf_matrix, top_n=3, threshold=0.7):
-    query_asli  = " ".join(query_words)
-    q_asli_vec  = vectorizer.transform([query_asli])
-    result_asli = cosine_similarity(tfidf_matrix, q_asli_vec).flatten()
-    hasil       = []
-    idx_kata    = query_words.index(kata)
-
-    for s in sinonim_list:
-        if s == kata:
-            hasil.append((s, 1.0))
             continue
-        query_variasi       = query_words.copy()
-        query_variasi[idx_kata] = s
-        q_var_vec           = vectorizer.transform([" ".join(query_variasi)])
-        result_variasi      = cosine_similarity(tfidf_matrix, q_var_vec).flatten()
-        norm_asli           = np.linalg.norm(result_asli)
-        norm_var            = np.linalg.norm(result_variasi)
-        if norm_asli > 0 and norm_var > 0:
-            skor = np.dot(result_asli, result_variasi) / (norm_asli * norm_var)
-        else:
-            skor = 0.0
-        if skor >= threshold:
-            hasil.append((s, skor))
 
-    hasil = sorted(hasil, key=lambda x: x[1], reverse=True)
-    return [x[0] for x in hasil[:top_n]]
+    return pd.DataFrame({"Judul": titles_list, "Konten": contents_list, "URL": valid_urls})
 
-# ─────────────────────────────────────────────
-# FUNGSI PENCARIAN UTAMA
-# ─────────────────────────────────────────────
-def search(query_tokens, vectorizer, tfidf_matrix, df,
-           use_expansion=False, threshold=0.1, top_n=10):
-    if use_expansion:
-        list_synonym = []
-        for kata in query_tokens:
-            sinonim = get_sinonim(kata)
-            sinonim = filter_sinonim_dinamis(
-                kata, sinonim, query_tokens, vectorizer, tfidf_matrix,
-                top_n=3, threshold=0.7
-            )
-            list_synonym.append(sinonim)
 
-        qs = set()
-        for i, kata in enumerate(query_tokens):
-            for s in list_synonym[i]:
-                kombinasi    = query_tokens.copy()
-                kombinasi[i] = s
-                qs.add(" ".join(kombinasi))
-        qs.add(" ".join(query_tokens))
-    else:
-        qs    = {" ".join(query_tokens)}
-        list_synonym = [[k] for k in query_tokens]
+@st.cache_data(show_spinner=False)
+def get_synonyms_online(word):
+    """Ambil sinonim dari sinonimkata.com (live)"""
+    synonyms = []
+    try:
+        url = f"https://www.sinonimkata.com/sinonim-{urllib.parse.quote(word)}.html"
+        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=4)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            links = soup.find_all('a', href=re.compile(r'/sinonim-'))
+            for link in links:
+                syn = link.get_text(strip=True).lower()
+                if syn and syn != word:
+                    synonyms.append(syn)
+    except Exception:
+        pass
+    return list(set(synonyms))[:3]
 
-    max_result = []
-    for q in qs:
-        q_vec  = vectorizer.transform([q])
-        result = cosine_similarity(tfidf_matrix, q_vec)
-        for i in range(len(result)):
-            if result[i][0] > threshold:
-                max_result.append([i, result[i][0], q])
 
-    max_result = sorted(max_result, key=lambda x: x[1], reverse=True)
-    seen, new_result = set(), []
-    for item in max_result:
-        if item[0] not in seen:
-            seen.add(item[0])
-            new_result.append(item)
+def clean_and_preprocess(text):
+    """Pipeline teks: lowercase → regex clean → stopword → stemming"""
+    text = re.sub(r'[^a-zA-Z\s]', ' ', str(text).lower())
+    stopword_remover = StopWordRemoverFactory().create_stop_word_remover()
+    stemmer = StemmerFactory().create_stemmer()
+    tokens = [stemmer.stem(stopword_remover.remove(t)) for t in text.split() if t]
+    return " ".join([t for t in tokens if t])
 
-    # Evaluasi P/R/F1
-    q_vec_asli  = vectorizer.transform([" ".join(query_tokens)])
-    relevant    = {i for i in range(len(df))
-                   if cosine_similarity(tfidf_matrix[i], q_vec_asli)[0][0] >= threshold}
-    retrieved   = {item[0] for item in new_result}
-    tp          = relevant & retrieved
-    precision   = len(tp) / len(retrieved) if retrieved else 0
-    recall      = len(tp) / len(relevant)  if relevant  else 0
-    f1          = (2 * precision * recall) / (precision + recall) \
-                  if (precision + recall) > 0 else 0
-
-    synonyms_used = list_synonym if use_expansion else None
-    return new_result[:top_n], precision, recall, f1, synonyms_used
 
 # ─────────────────────────────────────────────
-# UI UTAMA
+# 4. ACCENT COLOR MAP
+# ─────────────────────────────────────────────
+ACCENT_COLORS = [
+    ("#4fa3e8", "#e8f3fd", "#1d5fa1"),   # sky
+    ("#9b6fdb", "#f3eeff", "#5c2fa6"),   # violet
+    ("#e8438a", "#fce7f3", "#9c1a58"),   # pink
+    ("#dd5b00", "#fff2e8", "#8b3900"),   # orange
+    ("#2a9d99", "#e6f7f7", "#1a6360"),   # teal
+    ("#1aae39", "#e7f9eb", "#0d6624"),   # green
+]
+
+
+# ─────────────────────────────────────────────
+# 5. MAIN UI
 # ─────────────────────────────────────────────
 def main():
-    stopword, stemmer = load_nlp_tools()
-    URLS              = load_dataset_and_index()
+    # Load corpus once
+    with st.spinner("Mengindeks 50 dokumen berita..."):
+        df = load_and_scrape_dataset()
 
-    # ── Hero ──
-    st.markdown("""
-    <div class="hero-section">
-        <div class="hero-logo">🔍</div>
-        <h1 class="hero-title">Search Engine</h1>
-        <p class="hero-subtitle">Sistem Temu Kembali Informasi Berita Indonesia · TF-IDF + Query Expansion</p>
+    # ── MASTHEAD ────────────────────────────────────
+    st.markdown(f"""
+    <div class="masthead">
+      <div class="masthead-top-bar">
+        <span class="masthead-wordmark">STKI &nbsp;&middot;&nbsp; Sistem Temu Kembali Informasi</span>
+        <span class="masthead-dateline">Kompas.com &nbsp;&middot;&nbsp; {len(df)} dokumen</span>
+      </div>
+      <div class="masthead-title-row">
+        <h1 class="masthead-title">Mesin Pencari Berita</h1>
+        <p class="masthead-desc">TF-IDF &nbsp;&middot;&nbsp; Cosine Similarity &nbsp;&middot;&nbsp; Query Expansion &nbsp;&middot;&nbsp; Sastrawi NLP</p>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Panel Pencarian ──
-    col_left, col_center, col_right = st.columns([1, 3, 1])
-    with col_center:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    # ── SEARCH SECTION ─────────────────────────────
+    st.markdown('<p class="section-label">Kata Kunci Pencarian</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-sub">Masukkan topik yang ingin dicari — kendalikan perluasan kata kunci secara fleksibel.</p>',
+        unsafe_allow_html=True,
+    )
 
-        query_input  = st.text_input("", placeholder="Cari sesuatu yang menarik...", label_visibility="collapsed")
-        
-        col_a, col_b = st.columns(2)
-        with col_a:
-            use_expansion = st.checkbox("🔄 Gunakan Query Expansion", value=False)
-        with col_b:
-            top_n = st.selectbox("Jumlah hasil", [5, 10, 20], index=1, label_visibility="visible")
+    # Wrapped search bar
+    st.markdown('<div class="search-wrap">', unsafe_allow_html=True)
+    query_input = st.text_input(
+        "query",
+        placeholder="Contoh: korupsi CPO ombudsman, evakuasi WNI Lebanon, mudik lebaran 2026...",
+        label_visibility="collapsed",
+        key="search_input",
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        threshold = st.slider("Threshold relevansi", 0.01, 0.5, 0.1, 0.01)
+    # ── KONFIGURASI MANUAL EXPANSION & SLIDER THRESHOLD ──
+    col_config_left, col_config_right = st.columns([1, 1])
+    
+    with col_config_left:
+        # Fitur manual diubah menggunakan Radio Button Premium
+        use_expansion = st.radio(
+            "Metode Pencarian:",
+            ["Pencarian Standar (Tanpa Perluasan)", "Gunakan Query Expansion (Ekspansi Sinonim)"],
+            index=1,
+            help="Pilih apakah sistem perlu mencari kata bermakna sama secara otomatis lewat repositori online."
+        )
+        is_expansion_active = (use_expansion == "Gunakan Query Expansion (Ekspansi Sinonim)")
 
-        search_btn   = st.button("🔍  Cari Sekarang")
-        st.markdown('</div>', unsafe_allow_html=True)
+    with col_config_right:
+        threshold = st.slider(
+            "Threshold Relevansi (Cosine Score)",
+            min_value=0.0,
+            max_value=0.5,
+            value=0.10,
+            step=0.01,
+            help="Batas minimum skor kemiripan. Naikkan untuk hasil lebih presisi, turunkan untuk lebih banyak hasil.",
+        )
 
-    # ── Load & Index data ──
-    if "df" not in st.session_state or "vectorizer" not in st.session_state:
-        with st.spinner("⏳ Memuat & mengindeks dataset berita..."):
-            df        = scrape_articles(tuple(URLS))
-            df["clean_text"] = df["Text"].apply(
-                lambda x: preprocess_text(x, stopword, stemmer)
-            )
-            vectorizer   = TfidfVectorizer(use_idf=True)
-            tfidf_matrix = vectorizer.fit_transform(df["clean_text"].tolist())
-            st.session_state["df"]           = df
-            st.session_state["vectorizer"]   = vectorizer
-            st.session_state["tfidf_matrix"] = tfidf_matrix
+    # Tombol submit mandiri yang memanjang penuh responsif
+    st.markdown("<div style='margin-top:12px; margin-bottom: 24px;'>", unsafe_allow_html=True)
+    search_btn = st.button("Cari Sekarang ↗", use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    df           = st.session_state["df"]
-    vectorizer   = st.session_state["vectorizer"]
-    tfidf_matrix = st.session_state["tfidf_matrix"]
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
-    col_left2, col_center2, col_right2 = st.columns([1, 3, 1])
-    with col_center2:
-        st.markdown(f"""
-        <div class="info-banner">
-            📰 <b>{len(df)}</b> artikel berita terindeks · Siap dicari
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ── Proses pencarian ──
+    # ── SEARCH LOGIC ───────────────────────────────
     if search_btn and query_input.strip():
-        query_tokens = preprocess_query(query_input, stopword, stemmer)
+        with st.spinner("Memproses query dan menghitung kesamaan dokumen..."):
+            raw_tokens = re.sub(r'[^a-zA-Z\s]', ' ', query_input.lower()).split()
 
-        if not query_tokens:
-            st.warning("Query tidak menghasilkan token yang valid. Coba kata lain.")
-            return
+            # Logika Query Expansion Manual
+            expanded_queries = [" ".join(raw_tokens)]
+            
+            if is_expansion_active:
+                for word in raw_tokens:
+                    if len(word) > 3:
+                        syns = get_synonyms_online(word)
+                        for syn in syns:
+                            new_q = [syn if w == word else w for w in raw_tokens]
+                            expanded_queries.append(" ".join(new_q))
+                expanded_queries = list(set(expanded_queries))
+                
+                # Memunculkan daftar kata penjelas ekspansi agar dosen tahu fitur bekerja
+                with st.expander("✨ Lihat Variasi Kata Kunci Hasil Ekspansi", expanded=True):
+                    st.caption("Variasi kombinasi kata kunci yang ikut dipindai ke dalam koleksi berita:")
+                    st.code("\n".join([f"• {q}" for q in expanded_queries]))
 
-        with st.spinner("🔍 Memproses pencarian..."):
-            results, precision, recall, f1, synonyms_used = search(
-                query_tokens, vectorizer, tfidf_matrix, df,
-                use_expansion=use_expansion,
-                threshold=threshold,
-                top_n=top_n,
+            # TF-IDF on corpus
+            processed_docs = [clean_and_preprocess(t) for t in df["Konten"]]
+            vectorizer = TfidfVectorizer()
+            tfidf_matrix = vectorizer.fit_transform(processed_docs)
+
+            # Score all targeted queries
+            all_results = []
+            for q_var in expanded_queries:
+                p_q = clean_and_preprocess(q_var)
+                if not p_q.strip():
+                    continue
+                q_vec = vectorizer.transform([p_q])
+                scores = cosine_similarity(tfidf_matrix, q_vec).flatten()
+                for idx, score in enumerate(scores):
+                    if score >= threshold:
+                        all_results.append((idx, score, q_var))
+
+            all_results.sort(key=lambda x: x[1], reverse=True)
+
+            # Deduplicate — best score per document
+            seen, filtered = set(), []
+            for idx, score, q_used in all_results:
+                if idx not in seen:
+                    seen.add(idx)
+                    filtered.append((idx, score, q_used))
+
+        # ── RESULTS ──────────────────────────────
+        if filtered:
+            st.markdown(
+                f'<div class="result-count">{len(filtered)} dokumen ditemukan &nbsp;&middot;&nbsp; threshold &ge; {threshold:.2f}</div>',
+                unsafe_allow_html=True,
             )
 
-        col_left3, col_center3, col_right3 = st.columns([1, 3, 1])
-        with col_center3:
-            # Metrik evaluasi
-            st.markdown(f"""
-            <div class="glass-card">
-                <div style="color:white;font-weight:600;font-size:15px;margin-bottom:14px;">
-                    📊 Evaluasi Hasil — query: <i>"{query_input}"</i>
-                    → token: <code style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px;">
-                    {" ".join(query_tokens)}</code>
+            for rank, (idx, score, q_used) in enumerate(filtered):
+                judul       = df["Judul"].iloc[idx]
+                url         = df["URL"].iloc[idx]
+                preview     = df["Konten"].iloc[idx][:260].strip() + "…"
+                bar_pct     = min(int(score * 250), 100)
+                accent, bg, dark = ACCENT_COLORS[rank % len(ACCENT_COLORS)]
+
+                st.markdown(f"""
+                <div class="news-card">
+                  <div class="card-accent" style="background:{accent};"></div>
+                  <div class="card-body-pad">
+                    <div class="card-rank-title">
+                      <div class="rank-badge" style="background:{bg}; color:{dark};">#{rank+1}</div>
+                      <div class="card-title-text">{judul}</div>
+                    </div>
+                    <div class="card-excerpt">{preview}</div>
+                    <div class="card-footer">
+                      <div class="card-footer-left">
+                        <span class="score-chip">
+                          <span style="background:{accent}; width:6px; height:6px; display:inline-block; border-radius:50%; margin-right:4px; vertical-align:middle;"></span>
+                          {score:.4f}
+                        </span>
+                        <span class="expansion-chip">
+                          via <span title="{q_used}">"{q_used}"</span>
+                        </span>
+                      </div>
+                      <a href="{url}" target="_blank" class="open-link">Buka Artikel ↗</a>
+                    </div>
+                    <div class="rel-bar-track">
+                      <div class="rel-bar-fill" style="width:{bar_pct}%; background:{accent};"></div>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-grid">
-                    <div class="metric-box">
-                        <div class="metric-label">Precision</div>
-                        <div class="metric-value">{precision:.2f}</div>
+                """, unsafe_allow_html=True)
+            
+            # ── METRIK EVALUASI SISTEM (Information Retrieval Analytics) ──
+            st.markdown('<p class="section-label">Analisis Evaluasi Sistem (IR Metrics)</p>', unsafe_allow_html=True)
+            st.markdown('<p class="section-sub">Komparasi tingkat akurasi pencarian terhadap batas ambang kesamaan matematika.</p>', unsafe_allow_html=True)
+            
+            relevant_docs = set()
+            q_vec_asli = vectorizer.transform([clean_and_preprocess(" ".join(raw_tokens))])
+            scores_asli = cosine_similarity(tfidf_matrix, q_vec_asli).flatten()
+            for i, skor in enumerate(scores_asli):
+                if skor >= threshold:
+                    relevant_docs.add(i)
+                    
+            retrieved_docs = set(seen)
+            true_positive = relevant_docs & retrieved_docs
+            
+            precision = len(true_positive) / len(retrieved_docs) if retrieved_docs else 0
+            recall = len(true_positive) / len(relevant_docs) if relevant_docs else 0
+            f1_score = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+            
+            st.markdown(f"""
+            <div class="news-card" style="border-left: 4px solid var(--ink); padding: 20px;">
+                <div class="card-title-text" style="font-size: 15px; margin-bottom: 12px; font-weight: 600;">📊 HASIL PERHITUNGAN MATEMATIS EVALUASI</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; text-align: center;">
+                    <div style="background: var(--paper); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--hairline);">
+                        <div style="font-size: 11px; color: var(--stone); font-weight: 600; letter-spacing: 0.04em;">PRECISION</div>
+                        <div style="font-size: 22px; font-weight: 700; color: var(--ink); margin-top:4px;">{precision:.2%}</div>
                     </div>
-                    <div class="metric-box">
-                        <div class="metric-label">Recall</div>
-                        <div class="metric-value">{recall:.2f}</div>
+                    <div style="background: var(--paper); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--hairline);">
+                        <div style="font-size: 11px; color: var(--stone); font-weight: 600; letter-spacing: 0.04em;">RECALL</div>
+                        <div style="font-size: 22px; font-weight: 700; color: var(--ink); margin-top:4px;">{recall:.2%}</div>
                     </div>
-                    <div class="metric-box">
-                        <div class="metric-label">F1-Score</div>
-                        <div class="metric-value">{f1:.2f}</div>
+                    <div style="background: var(--paper); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--hairline);">
+                        <div style="font-size: 11px; color: var(--stone); font-weight: 600; letter-spacing: 0.04em;">F1-SCORE</div>
+                        <div style="font-size: 22px; font-weight: 700; color: var(--indigo-700); margin-top:4px;">{f1_score:.4f}</div>
                     </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-            # Sinonim yang dipakai
-            if use_expansion and synonyms_used:
-                syn_html = ""
-                for tok, syns in zip(query_tokens, synonyms_used):
-                    badges = "".join(f'<span class="badge">{s}</span> ' for s in syns)
-                    syn_html += f'<div style="margin-bottom:6px;color:rgba(255,255,255,0.85);font-size:13px;"><b>{tok}</b> → {badges}</div>'
-                st.markdown(f"""
-                <div class="glass-card">
-                    <div style="color:white;font-weight:600;font-size:14px;margin-bottom:10px;">🔄 Sinonim yang digunakan</div>
-                    {syn_html}
-                </div>
-                """, unsafe_allow_html=True)
-
-            # Daftar hasil
-            if results:
-                st.markdown(f"""
-                <div style="color:white;font-weight:600;font-size:16px;margin:10px 0 14px;">
-                    📋 {len(results)} Berita Ditemukan
-                </div>
-                """, unsafe_allow_html=True)
-
-                for rank, (idx, score, q_used) in enumerate(results, 1):
-                    bar_width = min(int(score * 100 / max(r[1] for r in results) * 100), 100)
-                    judul = df["Judul"].iloc[idx]
-                    url   = df["URL"].iloc[idx]
-                    domain = url.split("/")[2] if "/" in url else url
-
-                    st.markdown(f"""
-                    <div class="result-card">
-                        <div class="result-rank">#{rank} · Relevansi {score:.4f}</div>
-                        <div class="result-title">{judul}</div>
-                        <div class="result-url">🔗 {domain}</div>
-                        <div class="result-meta">
-                            <span class="badge">Score: {score:.4f}</span>
-                            <span class="badge">Query: {q_used}</span>
-                            <a href="{url}" target="_blank"
-                               style="color:#1a7a8f;font-size:13px;font-weight:500;text-decoration:none;">
-                               Buka artikel ↗
-                            </a>
-                        </div>
-                        <div class="result-score-bar" style="width:{bar_width}%"></div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div class="glass-card" style="text-align:center;color:white;">
-                    😕 Tidak ada hasil ditemukan dengan threshold ini.<br>
-                    <small>Coba turunkan nilai threshold atau gunakan query yang berbeda.</small>
-                </div>
-                """, unsafe_allow_html=True)
+            
+        else:
+            st.markdown(f"""
+            <div class="empty-state">
+              <span class="empty-icon">🔭</span>
+              <div class="empty-title">Tidak Ada Hasil</div>
+              <div class="empty-sub">
+                Tidak ada dokumen yang melewati threshold <strong>{threshold:.2f}</strong>.
+                Coba turunkan threshold atau ganti kata kunci.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
     elif search_btn and not query_input.strip():
-        col_left4, col_center4, col_right4 = st.columns([1, 3, 1])
-        with col_center4:
-            st.markdown("""
-            <div class="glass-card" style="text-align:center;color:white;">
-                ⚠️ Masukkan kata kunci terlebih dahulu.
-            </div>
-            """, unsafe_allow_html=True)
+        st.warning("⚠️ Ketik kata kunci terlebih dahulu sebelum mencari.")
 
-    # ── Footer ──
-    st.markdown("""
-    <div class="footer">
-        Sistem Temu Kembali Informasi · TF-IDF + Cosine Similarity + Query Expansion<br>
-        Sumber data: Kompas.com · Dibangun dengan Streamlit
+    # ── FOOTER ─────────────────────────────────────
+    st.markdown(f"""
+    <div class="site-footer">
+      <strong>STKI · Sistem Temu Kembali Informasi</strong><br>
+      Model Ruang Vektor (VSM) &middot; TF-IDF Weighting &middot; Cosine Similarity &middot; Sastrawi NLP<br>
+      Corpus: <code>Kompas.com Live Scraping</code> &mdash; {len(df)} dokumen terindeks
     </div>
     """, unsafe_allow_html=True)
 
